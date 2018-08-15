@@ -1,9 +1,13 @@
+/*** includes ***/
+
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <termios.h>
 #include <unistd.h>
+
+/*** data ***/
 
 struct termios orig_termios;
 
@@ -32,6 +36,8 @@ void enableRawMode() {
 
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
+
+/*** init ***/
 
 int main() {
     enableRawMode();
