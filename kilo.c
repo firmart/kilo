@@ -165,12 +165,35 @@ void editorRefreshScreen() {
 
 /*** input ***/
 
+void editorMoveCursor(char key) {
+  switch (key) {
+    case 'h':
+      E.cx--;
+      break;
+    case 'l':
+      E.cx++;
+      break;
+    case 'k':
+      E.cy--;
+      break;
+    case 'j':
+      E.cy++;
+      break;
+  }
+}
+
 void editorProcessKeypress() {
   char c = editorReadKey();
   switch (c) {
     case CTRL_KEY('q'):
       write(STDOUT_FILENO, "\x1b[H", 3);
       exit(0);
+      break;
+    case 'k':
+    case 'j':
+    case 'h':
+    case 'l':
+      editorMoveCursor(c);
       break;
   }
 }
