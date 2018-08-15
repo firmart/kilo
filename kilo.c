@@ -69,10 +69,10 @@ char editorReadKey() {
     if (read(STDIN_FILENO, &seq[1], 1) != 1) return '\x1b';
     if (seq[0] == '[') {
       switch (seq[1]) {
-        case 'A': return 'w';
-        case 'B': return 's';
-        case 'C': return 'd';
-        case 'D': return 'a';
+        case 'A': return 'k';
+        case 'B': return 'j';
+        case 'C': return 'l';
+        case 'D': return 'h';
       }
     }
     return '\x1b';
