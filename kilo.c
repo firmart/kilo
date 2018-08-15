@@ -118,6 +118,8 @@ void editorDrawRows(struct abuf *ab) {
   int y;
   for (y = 0; y < E.screenrows; y++) {
     abAppend(ab, "~", 1);
+
+    write(STDOUT_FILENO, "\x1b[K", 4);
     if (y < E.screenrows - 1) {
       abAppend(ab, "\r\n", 2);
     }
@@ -146,7 +148,6 @@ void editorProcessKeypress() {
   char c = editorReadKey();
   switch (c) {
     case CTRL_KEY('q'):
-      write(STDOUT_FILENO, "\x1b[2J", 4);
       write(STDOUT_FILENO, "\x1b[H", 3);
       exit(0);
       break;
