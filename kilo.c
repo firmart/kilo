@@ -21,6 +21,7 @@
 
 #define KILO_VERSION "0.0.1"
 #define KILO_TAB_STOP 8
+#define KILO_QUIT_TIMES 3
 
 #define CTRL_KEY(k) ((k) & 0x1f)
 
@@ -169,7 +170,7 @@ int getWindowSize(int *rows, int *cols) {
   } else {
     *cols = ws.ws_col;
     *rows = ws.ws_row;
-5B    return 0;
+    return 0;
   }
 }
 
@@ -489,6 +490,8 @@ void editorMoveCursor(int key) {
 }
 
 void editorProcessKeypress() {
+  static int quit_times = KILO_QUIT_TIMES;
+
   int c = editorReadKey();
   switch (c) {
     case '\r':
@@ -496,6 +499,12 @@ void editorProcessKeypress() {
       break;
 
     case CTRL_KEY('q'):
+      if (E.dirty && quit_times > 0) {
+        editorSetStatusMessage("WARNING!!! File has unsaved changes. "
+          "Press Ctrl-Q %d more times to quit.", quit_times);
+        quit_times--;
+        return;
+      }
       write(STDOUT_FILENO, "\x1b[H", 3);
       exit(0);
       break;
@@ -550,6 +559,7 @@ void editorProcessKeypress() {
       editorInsertChar(c);
       break;
   }
+  quit_times = KILO_QUIT_TIMES;
 }
 
 /*** init ***/
