@@ -522,13 +522,20 @@ void editorSetStatusMessage(const char *fmt, ...) {
 char *editorPrompt(char *prompt) {
   size_t bufsize = 128;
   char *buf = malloc(bufsize);
+
   size_t buflen = 0;
   buf[0] = '\0';
+
   while (1) {
     editorSetStatusMessage(prompt, buf);
     editorRefreshScreen();
+
     int c = editorReadKey();
-    if (c == '\r') {
+    if (c == '\x1b') {
+      editorSetStatusMessage("");
+      free(buf);
+      return NULL;
+    } else if (c == '\r') {
       if (buflen != 0) {
         editorSetStatusMessage("");
         return buf;
