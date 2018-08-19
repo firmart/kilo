@@ -70,7 +70,7 @@ struct editorConfig {
   int screenrows;
   int screencols;
   int numrows;
-  erow* row;
+  erow *row;
   int dirty;
   char *filename;
   char statusmsg[80];
@@ -101,7 +101,7 @@ void editorSetStatusMessage(const char *fmt, ...);
 void editorRefreshScreen();
 char *editorPrompt(char *prompt, void (*callback)(char *, int));
 
-/*** terminal ***/ 
+/*** terminal ***/
 
 void die(const char *s) {
   write(STDOUT_FILENO, "\x1b[2J", 4);
@@ -112,9 +112,8 @@ void die(const char *s) {
 }
 
 void disableRawMode() {
-  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &E.orig_termios) == -1) 
+  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &E.orig_termios) == -1)
     die("tcsetattr");
-  
 }
 
 void enableRawMode() {
@@ -129,7 +128,7 @@ void enableRawMode() {
   raw.c_cc[VMIN] = 0;
   raw.c_cc[VTIME] = 1;
 
-  tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die("tcsetattr");
 }
 
 int editorReadKey() {
@@ -138,10 +137,13 @@ int editorReadKey() {
   while ((nread = read(STDIN_FILENO, &c, 1)) != 1) {
     if (nread == -1 && errno != EAGAIN) die("read");
   }
+
   if (c == '\x1b') {
     char seq[3];
+
     if (read(STDIN_FILENO, &seq[0], 1) != 1) return '\x1b';
     if (read(STDIN_FILENO, &seq[1], 1) != 1) return '\x1b';
+
     if (seq[0] == '[') {
       if (seq[1] >= '0' && seq[1] <= '9') {
         if (read(STDIN_FILENO, &seq[2], 1) != 1) return '\x1b';
@@ -158,12 +160,12 @@ int editorReadKey() {
         }
       } else {
         switch (seq[1]) {
-            case 'A': return ARROW_UP;
-            case 'B': return ARROW_DOWN;
-            case 'C': return ARROW_RIGHT;
-            case 'D': return ARROW_LEFT;
-            case 'H': return HOME_KEY;
-            case 'F': return END_KEY;
+          case 'A': return ARROW_UP;
+          case 'B': return ARROW_DOWN;
+          case 'C': return ARROW_RIGHT;
+          case 'D': return ARROW_LEFT;
+          case 'H': return HOME_KEY;
+          case 'F': return END_KEY;
         }
       }
     } else if (seq[0] == 'O') {
@@ -172,6 +174,7 @@ int editorReadKey() {
         case 'F': return END_KEY;
       }
     }
+
     return '\x1b';
   } else {
     return c;
@@ -181,7 +184,9 @@ int editorReadKey() {
 int getCursorPosition(int *rows, int *cols) {
   char buf[32];
   unsigned int i = 0;
+
   if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4) return -1;
+
   while (i < sizeof(buf) - 1) {
     if (read(STDIN_FILENO, &buf[i], 1) != 1) break;
     if (buf[i] == 'R') break;
@@ -191,11 +196,13 @@ int getCursorPosition(int *rows, int *cols) {
 
   if (buf[0] != '\x1b' || buf[1] != '[') return -1;
   if (sscanf(&buf[2], "%d;%d", rows, cols) != 2) return -1;
+
   return 0;
 }
 
 int getWindowSize(int *rows, int *cols) {
   struct winsize ws;
+
   if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
     if (write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12) return -1;
     return getCursorPosition(rows, cols);
@@ -205,7 +212,6 @@ int getWindowSize(int *rows, int *cols) {
     return 0;
   }
 }
-
 
 /*** syntax highlighting ***/
 
@@ -226,15 +232,15 @@ void editorUpdateSyntax(erow *row) {
     char c = row->render[i];
     unsigned char prev_hl = (i > 0) ? row->hl[i - 1] : HL_NORMAL;
 
-  if (E.syntax->flags & HL_HIGHLIGHT_NUMBERS) {
-    if ((isdigit(c) && (prev_sep || prev_hl == HL_NUMBER)) ||
-        (c == '.' && prev_hl == HL_NUMBER)) {
-      row->hl[i] = HL_NUMBER;
-      i++;
-      prev_sep = 0;
-      continue;
+    if (E.syntax->flags & HL_HIGHLIGHT_NUMBERS) {
+      if ((isdigit(c) && (prev_sep || prev_hl == HL_NUMBER)) ||
+          (c == '.' && prev_hl == HL_NUMBER)) {
+        row->hl[i] = HL_NUMBER;
+        i++;
+        prev_sep = 0;
+        continue;
+      }
     }
-  }
 
     prev_sep = is_separator(c);
     i++;
@@ -253,17 +259,17 @@ void editorSelectSyntaxHighlight() {
   E.syntax = NULL;
   if (E.filename == NULL) return;
 
-  char *ext = strrchr(E.filename, '.');
-
   for (unsigned int j = 0; j < HLDB_ENTRIES; j++) {
     struct editorSyntax *s = &HLDB[j];
     unsigned int i = 0;
     while (s->filematch[i]) {
-      int is_ext = (s->filematch[i][0] == '.');
-      if ((is_ext && ext && !strcmp(ext, s->filematch[i])) ||
-          (!is_ext && strstr(E.filename, s->filematch[i]))) {
-        E.syntax = s;
-        return;
+      char *p = strstr(E.filename, s->filematch[i]);
+      if (p != NULL) {
+        int patlen = strlen(s->filematch[i]);
+        if (s->filematch[i][0] != '.' || p[patlen] == '\0') {
+          E.syntax = s;
+          return;
+        }
       }
       i++;
     }
@@ -271,8 +277,6 @@ void editorSelectSyntaxHighlight() {
 }
 
 /*** row operations ***/
-
-
 
 int editorRowCxToRx(erow *row, int cx) {
   int rx = 0;
@@ -453,6 +457,7 @@ void editorOpen(char *filename) {
 
   FILE *fp = fopen(filename, "r");
   if (!fp) die("fopen");
+
   char *line = NULL;
   size_t linecap = 0;
   ssize_t linelen;
@@ -479,6 +484,7 @@ void editorSave() {
 
   int len;
   char *buf = editorRowsToString(&len);
+
   int fd = open(E.filename, O_RDWR | O_CREAT, 0644);
   if (fd != -1) {
     if (ftruncate(fd, len) != -1) {
@@ -492,6 +498,7 @@ void editorSave() {
     }
     close(fd);
   }
+
   free(buf);
   editorSetStatusMessage("Can't save! I/O error: %s", strerror(errno));
 }
@@ -504,6 +511,7 @@ void editorFindCallback(char *query, int key) {
 
   static int saved_hl_line;
   static char *saved_hl = NULL;
+
   if (saved_hl) {
     memcpy(E.row[saved_hl_line].hl, saved_hl, E.row[saved_hl_line].rsize);
     free(saved_hl);
@@ -547,7 +555,6 @@ void editorFindCallback(char *query, int key) {
     }
   }
 }
-
 
 void editorFind() {
   int saved_cx = E.cx;
@@ -618,17 +625,17 @@ void editorDrawRows(struct abuf *ab) {
     int filerow = y + E.rowoff;
     if (filerow >= E.numrows) {
       if (E.numrows == 0 && y == E.screenrows / 3) {
-      char welcome[80];
-      int welcomelen = snprintf(welcome, sizeof(welcome),
+        char welcome[80];
+        int welcomelen = snprintf(welcome, sizeof(welcome),
           "Kilo editor -- version %s", KILO_VERSION);
-      if (welcomelen > E.screencols) welcomelen = E.screencols;
-      int padding = (E.screencols - welcomelen) / 2;
-      if (padding) {
+        if (welcomelen > E.screencols) welcomelen = E.screencols;
+        int padding = (E.screencols - welcomelen) / 2;
+        if (padding) {
           abAppend(ab, "~", 1);
           padding--;
-      }
-      while (padding--) abAppend(ab, " ", 1);
-      abAppend(ab, welcome, welcomelen);
+        }
+        while (padding--) abAppend(ab, " ", 1);
+        abAppend(ab, welcome, welcomelen);
       } else {
         abAppend(ab, "~", 1);
       }
@@ -660,7 +667,7 @@ void editorDrawRows(struct abuf *ab) {
       }
       abAppend(ab, "\x1b[39m", 5);
     }
-    
+
     abAppend(ab, "\x1b[K", 3);
     abAppend(ab, "\r\n", 2);
   }
@@ -703,7 +710,6 @@ void editorRefreshScreen() {
   struct abuf ab = ABUF_INIT;
 
   abAppend(&ab, "\x1b[?25l", 6);
-  abAppend(&ab, "\x1b[2J", 4);
   abAppend(&ab, "\x1b[H", 3);
 
   editorDrawRows(&ab);
@@ -711,7 +717,7 @@ void editorRefreshScreen() {
   editorDrawMessageBar(&ab);
 
   char buf[32];
-  snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1, 
+  snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1,
                                             (E.rx - E.coloff) + 1);
   abAppend(&ab, buf, strlen(buf));
 
@@ -764,6 +770,7 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int)) {
       buf[buflen++] = c;
       buf[buflen] = '\0';
     }
+
     if (callback) callback(buf, c);
   }
 }
@@ -782,7 +789,7 @@ void editorMoveCursor(int key) {
       break;
     case ARROW_RIGHT:
       if (row && E.cx < row->size) {
-          E.cx++;
+        E.cx++;
       } else if (row && E.cx == row->size) {
         E.cy++;
         E.cx = 0;
@@ -811,6 +818,7 @@ void editorProcessKeypress() {
   static int quit_times = KILO_QUIT_TIMES;
 
   int c = editorReadKey();
+
   switch (c) {
     case '\r':
       editorInsertNewline();
@@ -823,6 +831,7 @@ void editorProcessKeypress() {
         quit_times--;
         return;
       }
+      write(STDOUT_FILENO, "\x1b[2J", 4);
       write(STDOUT_FILENO, "\x1b[H", 3);
       exit(0);
       break;
@@ -882,6 +891,7 @@ void editorProcessKeypress() {
       editorInsertChar(c);
       break;
   }
+
   quit_times = KILO_QUIT_TIMES;
 }
 
@@ -906,19 +916,19 @@ void initEditor() {
 }
 
 int main(int argc, char *argv[]) {
-    enableRawMode();
-    initEditor();
-    if (argc >= 2) {
-        editorOpen(argv[1]);
-    }
+  enableRawMode();
+  initEditor();
+  if (argc >= 2) {
+    editorOpen(argv[1]);
+  }
 
+  editorSetStatusMessage(
+    "HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find");
 
-    editorSetStatusMessage(
-      "HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find");
+  while (1) {
+    editorRefreshScreen();
+    editorProcessKeypress();
+  }
 
-    while (1) {
-        editorRefreshScreen();
-        editorProcessKeypress();
-    }
-    return 0;
+  return 0;
 }
