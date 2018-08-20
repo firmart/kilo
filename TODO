@@ -1,0 +1,38 @@
+TODO
+====
+
+> new name : Astrum
+
+Short term, easy to implement
+-----------------------------
+
+ * Add filetypes
+ * Display line numbers
+ * Soft indent
+ * Auto indent
+ * Soft-wrap line 
+ * Copy and paste
+ * Undo
+
+Mid term
+--------
+
+ * Config file
+ * Modal editing
+ * File browser
+ * Multiple buffers
+
+Long term
+---------
+
+ * Use ncurses 
+ * Use regex.h for search
+ * I18n
+ * DSL
+
+References
+==========
+
+* nano code source (especially the first commits)
+
+
